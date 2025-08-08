@@ -1,5 +1,7 @@
 # ecg1111.github.io
 
+# [悲傷回收站](https://ecg1111.github.io/cry/)
+
 情緒消費品
 
 各種情緒消發洩小遊戲
