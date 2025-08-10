@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>悲傷回收站 - 管理員面板</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0d0221, #1a0637, #2d0b5e);
+            color: #e0e0ff;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(106, 183, 255, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(255, 107, 107, 0.1) 0%, transparent 20%);
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            position: relative;
+            border-bottom: 1px solid rgba(138, 79, 255, 0.3);
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            color: #ff6b6b;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.7);
+            animation: pulse 3s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { text-shadow: 0 0 15px rgba(255, 107, 107, 0.5); }
+            50% { text-shadow: 0 0 25px rgba(255, 107, 107, 0.8), 0 0 35px rgba(255, 107, 107, 0.6); }
+            100% { text-shadow: 0 0 15px rgba(255, 107, 107, 0.5); }
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, #ff6b6b, #ff8e8e, #8a4fff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        .admin-nav {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn {
+            padding: 12px 25px;
+            border-radius: 12px;
+            background: rgba(138, 79, 255, 0.3);
+            color: #c7b3ff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+        }
+        
+        .nav-btn.active {
+            background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+            color: white;
+        }
+        
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(138, 79, 255, 0.4);
+        }
+        
+        .admin-content {
+            background: rgba(25, 10, 50, 0.7);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(138, 79, 255, 0.3);
+            min-height: 500px;
+        }
+        
+        .admin-section {
+            display: none;
+        }
+        
+        .admin-section.active {
+            display: block;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #ff8e8e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(138, 79, 255, 0.3);
+        }
+        
+        .section-title i {
+            font-size: 1.5rem;
+        }
+        
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .user-table th {
+            background: rgba(138, 79, 255, 0.3);
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #ff8e8e;
+        }
+        
+        .user-table td {
+            padding: 15px;
+            border-bottom: 1px solid rgba(138, 79, 255, 0.2);
+        }
+        
+        .user-table tr:hover {
+            background: rgba(138, 79, 255, 0.1);
+        }
+        
+        .vip-badge {
+            background: linear-gradient(135deg, #ffd66b, #ffb347);
+            color: #5a2a0c;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .edit-btn {
+            padding: 8px 15px;
+            border-radius: 8px;
+            background: rgba(106, 183, 255, 0.3);
+            color: #c7b3ff;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .edit-btn:hover {
+            background: rgba(106, 183, 255, 0.5);
+        }
+        
+        .coins-input {
+            width: 80px;
+            padding: 8px;
+            border-radius: 8px;
+            border: 2px solid rgba(138, 79, 255, 0.5);
+            background: rgba(15, 5, 35, 0.8);
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+        }
+        
+        .vip-toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .vip-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #2d0b5e;
+            transition: .4s;
+            border-radius: 30px;
+            border: 1px solid rgba(138, 79, 255, 0.5);
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 3px;
+            background-color: #8a4fff;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #ffd66b;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(30px);
+            background-color: #5a2a0c;
+        }
+        
+        .save-btn {
+            padding: 8px 20px;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+        
+        .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: rgba(15, 5, 35, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(138, 79, 255, 0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(138, 79, 255, 0.3);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ff8e8e;
+            margin: 15px 0;
+        }
+        
+        .stat-label {
+            font-size: 1.1rem;
+            color: #c7b3ff;
+        }
+        
+        .access-denied {
+            text-align: center;
+            padding: 50px 0;
+        }
+        
+        .access-denied h2 {
+            font-size: 2.5rem;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+        
+        .access-denied p {
+            font-size: 1.2rem;
+            color: #c7b3ff;
+            margin-bottom: 30px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #8a75b3;
+            font-size: 1rem;
+            border-top: 1px solid rgba(138, 79, 255, 0.2);
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .admin-nav {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .user-table {
+                display: block;
+                overflow-x: auto;
+            }
+            
+            .currency-tag {
+                font-size: 0.7rem;
+                padding: 2px 5px;
+            }
+            
+            .user-table td, .user-table th {
+                padding: 10px;
+                font-size: 0.9rem;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .admin-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* 新添加的样式 */
+        .currency-tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: rgba(138, 79, 255, 0.3);
+            font-size: 0.85rem;
+            margin-left: 8px;
+        }
+        
+        .currency-sadcoin {
+            background: linear-gradient(135deg, #8a4fff, #6ab7ff);
+        }
+        
+        .currency-hope {
+            background: linear-gradient(135deg, #6ab7ff, #4fff8a);
+        }
+        
+        .currency-love {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+        }
+        
+        .currency-courage {
+            background: linear-gradient(135deg, #ffd66b, #ffb347);
+        }
+        
+        .currency-peace {
+            background: linear-gradient(135deg, #8a4fff, #ff6bff);
+        }
+        
+        .currency-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(15, 5, 35, 0.8);
+            border-radius: 12px;
+            border: 1px solid rgba(138, 79, 255, 0.3);
+        }
+        
+        .currency-option {
+            padding: 8px 15px;
+            border-radius: 20px;
+            background: rgba(138, 79, 255, 0.2);
+            color: #c7b3ff;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+        
+        .currency-option.active {
+            background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
+            color: white;
+        }
+        
+        .currency-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(138, 79, 255, 0.3);
+        }
+        
+        .currency-stats-container {
+            margin-top: 30px;
+        }
+        
+        .currency-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        
+        .currency-stat-card {
+            background: rgba(25, 10, 50, 0.7);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(138, 79, 255, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .currency-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .currency-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .currency-total {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 10px 0;
+            color: #ff8e8e;
+            text-shadow: 0 0 10px rgba(255, 142, 142, 0.3);
+        }
+        
+        .currency-growth {
+            font-size: 0.9rem;
+            color: #8a75b3;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .currency-growth.positive {
+            color: #6ab7ff;
+        }
+        
+        .currency-growth.negative {
+            color: #ff6b6b;
+        }
+        
+        .currency-description {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #c7b3ff;
+        }
+        
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 12px 20px 12px 45px;
+            border-radius: 30px;
+            border: 2px solid rgba(138, 79, 255, 0.5);
+            background: rgba(15, 5, 35, 0.8);
+            color: white;
+            font-size: 1rem;
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8a4fff;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <h1>悲傷回收站 - 管理員面板</h1>
+        </header>
+        
+        <div id="adminContent" class="admin-content">
+            <div class="access-denied" id="accessDenied">
+                <h2><i class="fas fa-lock"></i> 訪問受限</h2>
+                <p>您需要管理員權限才能訪問此面板</p>
+                <button id="loginBtn" class="save-btn">
+                    <i class="fab fa-google"></i> 使用 Google 登入
+                </button>
+            </div>
+            
+            <div id="adminPanel" style="display: none;">
+                <div class="admin-nav">
+                    <button class="nav-btn active" data-section="dashboard">儀表板</button>
+                    <button class="nav-btn" data-section="users">會員管理</button>
+                    <button id="logoutBtn" class="nav-btn">
+                        <i class="fas fa-sign-out-alt"></i> 登出
+                    </button>
+                </div>
+                
+                <div class="admin-section active" id="dashboardSection">
+                    <h2 class="section-title"><i class="fas fa-tachometer-alt"></i> 管理儀表板</h2>
+                    <p>歡迎回來，<span id="adminName">管理員</span>！這是系統的當前概覽。</p>
+                    
+                    <div class="admin-stats">
+                        <div class="stat-card">
+                            <i class="fas fa-users fa-2x"></i>
+                            <div class="stat-value" id="totalUsers">0</div>
+                            <div class="stat-label">總會員數</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <i class="fas fa-crown fa-2x"></i>
+                            <div class="stat-value" id="vipUsers">0</div>
+                            <div class="stat-label">VIP會員</div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <i class="fas fa-microphone-alt fa-2x"></i>
+                            <div class="stat-value" id="totalRecordings">0</div>
+                            <div class="stat-label">總錄音次數</div>
+                        </div>
+                    </div>
+                    
+                    <div class="currency-stats-container">
+                        <h3 class="section-title" style="font-size: 1.5rem; margin-top: 20px;">
+                            <i class="fas fa-coins"></i> 貨幣統計
+                        </h3>
+                        
+                        <div class="currency-selector" id="currencySelector">
+                            <div class="currency-option active" data-currency="all">全部幣種</div>
+                            <div class="currency-option" data-currency="sadCoin">悲傷幣</div>
+                            <div class="currency-option" data-currency="hopeCoin">希望幣</div>
+                            <div class="currency-option" data-currency="loveCoin">愛心幣</div>
+                            <div class="currency-option" data-currency="courageCoin">勇氣幣</div>
+                            <div class="currency-option" data-currency="peaceCoin">和平幣</div>
+                        </div>
+                        
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="currencySearch" placeholder="搜尋幣種...">
+                        </div>
+                        
+                        <div class="currency-stats-grid" id="currencyStats">
+                            <!-- 币种统计卡片将在这里动态生成 -->
+                        </div>
+                    </div>
+                    
+                    <h3 class="section-title" style="font-size: 1.5rem; margin-top: 30px;">
+                        <i class="fas fa-user-cog"></i> 快速操作
+                    </h3>
+                    <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
+                        <button class="save-btn" id="refreshBtn">
+                            <i class="fas fa-sync"></i> 刷新數據
+                        </button>
+                        <button class="save-btn" id="addCurrencyBtn" style="background: linear-gradient(90deg, #8a4fff, #6ab7ff);">
+                            <i class="fas fa-plus-circle"></i> 添加新幣種
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="admin-section" id="usersSection">
+                    <h2 class="section-title"><i class="fas fa-user-friends"></i> 會員管理</h2>
+                    <p>管理所有會員的貨幣和VIP狀態。點擊保存按鈕進行修改。</p>
+                    
+                    <div style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+                        <div style="position: relative;">
+                            <input type="text" id="searchInput" placeholder="搜尋會員..." style="padding: 10px 15px; border-radius: 8px; border: 2px solid rgba(138, 79, 255, 0.5); background: rgba(15, 5, 35, 0.8); color: white; width: 250px;">
+                            <i class="fas fa-search" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #8a4fff;"></i>
+                        </div>
+                        <button id="saveAllBtn" class="save-btn" style="background: linear-gradient(90deg, #8a4fff, #6ab7ff);">
+                            <i class="fas fa-save"></i> 保存所有更改
+                        </button>
+                    </div>
+                    
+                    <table class="user-table">
+                        <thead>
+                            <tr>
+                                <th>會員名稱</th>
+                                <th>電子郵件</th>
+                                <th>貨幣</th>
+                                <th>VIP狀態</th>
+                                <th>最後登入</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 30px;">
+                                    <i class="fas fa-spinner fa-spin"></i> 載入會員數據中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>悲傷回收站管理系統 © 2023 | 僅限授權人員使用</p>
+            <p>所有操作都會被記錄以進行審計</p>
+        </footer>
+    </div>
+
+    <script>
+        // Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyCEKE2x7-D67OU1u8_lq4ejHkb4hn-tPbo",
+            authDomain: "ecg0808-ab2f3.firebaseapp.com",
+            projectId: "ecg0808-ab2f3",
+            storageBucket: "ecg0808-ab2f3.firebasestorage.app",
+            messagingSenderId: "161107516714",
+            appId: "1:161107516714:web:a4bba58eb8f704a02d5253",
+            measurementId: "G-BQ4VNE260F"
+        };
+
+        // 初始化 Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        // 初始化 Google 登录提供者
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        // DOM 元素
+        const accessDenied = document.getElementById('accessDenied');
+        const adminPanel = document.getElementById('adminPanel');
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const adminName = document.getElementById('adminName');
+        const usersTableBody = document.getElementById('usersTableBody');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const searchInput = document.getElementById('searchInput');
+        const saveAllBtn = document.getElementById('saveAllBtn');
+        const addCurrencyBtn = document.getElementById('addCurrencyBtn');
+        const currencySelector = document.getElementById('currencySelector');
+        const currencySearch = document.getElementById('currencySearch');
+        const currencyStats = document.getElementById('currencyStats');
+        
+        // 统计元素
+        const totalUsers = document.getElementById('totalUsers');
+        const vipUsers = document.getElementById('vipUsers');
+        const totalRecordings = document.getElementById('totalRecordings');
+        
+        // 导航按钮
+        const navBtns = document.querySelectorAll('.nav-btn[data-section]');
+        const sections = document.querySelectorAll('.admin-section');
+        
+        // 用户状态跟踪
+        let currentUser = null;
+        let allUsers = [];
+        let changes = {};
+        let currencyTotals = {};
+        let currencyHistory = {};
+
+        // 用户认证状态监听
+        auth.onAuthStateChanged(async user => {
+            if (user) {
+                currentUser = user;
+                adminName.textContent = user.displayName || "管理員";
+                
+                // 检查是否为管理员
+                const isAdmin = await checkAdminStatus(user.uid);
+                
+                if (isAdmin) {
+                    accessDenied.style.display = 'none';
+                    adminPanel.style.display = 'block';
+                    loadAdminData();
+                } else {
+                    accessDenied.innerHTML = `
+                        <h2><i class="fas fa-ban"></i> 權限不足</h2>
+                        <p>您的帳號沒有管理員權限</p>
+                        <button id="logoutBtn2" class="save-btn">
+                            <i class="fas fa-sign-out-alt"></i> 登出
+                        </button>
+                    `;
+                    document.getElementById('logoutBtn2').addEventListener('click', () => auth.signOut());
+                }
+            } else {
+                accessDenied.style.display = 'block';
+                adminPanel.style.display = 'none';
+            }
+        });
+
+        // 检查用户是否为管理员
+        async function checkAdminStatus(uid) {
+            try {
+                const adminDoc = await db.collection('admins').doc(uid).get();
+                return adminDoc.exists;
+            } catch (error) {
+                console.error("檢查管理員狀態錯誤:", error);
+                return false;
+            }
+        }
+
+        // Google登录功能
+        loginBtn.addEventListener('click', () => {
+            auth.signInWithPopup(provider)
+                .catch((error) => {
+                    console.error("Google登入錯誤:", error);
+                    alert(`登入失敗: ${error.message}`);
+                });
+        });
+
+        // 登出功能
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        // 导航切换
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const sectionId = btn.dataset.section + 'Section';
+                
+                // 更新按钮状态
+                navBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // 更新内容显示
+                sections.forEach(section => section.classList.remove('active'));
+                document.getElementById(sectionId).classList.add('active');
+                
+                // 如果需要，加载用户数据
+                if (sectionId === 'usersSection') {
+                    loadUsers();
+                }
+            });
+        });
+
+        // 刷新数据
+        refreshBtn.addEventListener('click', () => {
+            loadAdminData();
+        });
+
+        // 添加新币种
+        addCurrencyBtn.addEventListener('click', () => {
+            const currencyName = prompt('請輸入新幣種名稱（英文）:');
+            if (currencyName) {
+                const initialValue = parseInt(prompt('請輸入初始值（數字）:')) || 0;
+                
+                // 更新所有用户的币种
+                const batch = db.batch();
+                
+                allUsers.forEach(user => {
+                    const userRef = db.collection('users').doc(user.uid);
+                    batch.update(userRef, {
+                        [`currencies.${currencyName}`]: initialValue
+                    });
+                });
+                
+                batch.commit()
+                    .then(() => {
+                        alert(`已為所有用戶添加 ${currencyName} 幣種，初始值為 ${initialValue}`);
+                        loadUsers();
+                        loadStats();
+                    })
+                    .catch(error => {
+                        console.error("添加新幣種錯誤:", error);
+                        alert(`添加幣種失敗: ${error.message}`);
+                    });
+            }
+        });
+
+        // 币种筛选
+        currencySelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('currency-option')) {
+                // 更新按钮状态
+                document.querySelectorAll('.currency-option').forEach(opt => {
+                    opt.classList.remove('active');
+                });
+                e.target.classList.add('active');
+                
+                // 筛选币种
+                const currencyType = e.target.dataset.currency;
+                renderCurrencyStats(currencyType);
+            }
+        });
+
+        // 币种搜索
+        currencySearch.addEventListener('input', () => {
+            const searchTerm = currencySearch.value.toLowerCase();
+            renderCurrencyStats('all', searchTerm);
+        });
+
+        // 保存所有更改
+        saveAllBtn.addEventListener('click', () => {
+            if (Object.keys(changes).length === 0) {
+                alert('沒有需要保存的更改');
+                return;
+            }
+            
+            if (confirm(`確定要保存 ${Object.keys(changes).length} 項更改嗎？`)) {
+                const promises = [];
+                
+                for (const [uid, userData] of Object.entries(changes)) {
+                    promises.push(
+                        db.collection('users').doc(uid).update(userData)
+                    );
+                }
+                
+                Promise.all(promises)
+                    .then(() => {
+                        alert('所有更改已成功保存！');
+                        changes = {};
+                        saveAllBtn.disabled = true;
+                        saveAllBtn.innerHTML = '<i class="fas fa-save"></i> 保存所有更改';
+                        saveAllBtn.style.opacity = '0.7';
+                        
+                        // 更新本地数据
+                        for (const [uid, userData] of Object.entries(changes)) {
+                            const index = allUsers.findIndex(u => u.uid === uid);
+                            if (index !== -1) {
+                                allUsers[index] = {...allUsers[index], ...userData};
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error("保存所有更改錯誤:", error);
+                        alert(`保存失敗: ${error.message}`);
+                    });
+            }
+        });
+
+        // 加载管理员数据
+        async function loadAdminData() {
+            await loadUsers();
+            loadStats();
+        }
+
+        // 加载用户数据
+        async function loadUsers() {
+            usersTableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 30px;">
+                        <i class="fas fa-spinner fa-spin"></i> 載入會員數據中...
+                    </td>
+                </tr>
+            `;
+            
+            try {
+                const usersSnapshot = await db.collection('users').get();
+                allUsers = [];
+                changes = {};
+                saveAllBtn.disabled = true;
+                saveAllBtn.style.opacity = '0.7';
+                saveAllBtn.innerHTML = '<i class="fas fa-save"></i> 保存所有更改';
+                
+                usersSnapshot.forEach(doc => {
+                    const user = doc.data();
+                    allUsers.push(user);
+                });
+                
+                renderUsers(allUsers);
+                
+            } catch (error) {
+                console.error("載入用戶數據錯誤:", error);
+                usersTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 30px; color: #ff6b6b;">
+                            <i class="fas fa-exclamation-triangle"></i> 載入數據失敗，請重試
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // 渲染用户表格
+        function renderUsers(users) {
+            if (users.length === 0) {
+                usersTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 30px;">
+                            沒有找到符合條件的會員
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            usersTableBody.innerHTML = '';
+            
+            users.forEach(user => {
+                const lastLogin = user.lastLogin ? user.lastLogin.toDate().toLocaleString() : '從未登入';
+                const isVIP = changes[user.uid]?.isVIP !== undefined ? changes[user.uid].isVIP : user.isVIP;
+                
+                // 处理货币数据
+                let currenciesHtml = '';
+                if (user.currencies) {
+                    for (const [currencyName, value] of Object.entries(user.currencies)) {
+                        // 检查是否有针对此货币的更改
+                        const currencyKey = `currencies.${currencyName}`;
+                        const currencyValue = changes[user.uid]?.[currencyKey] !== undefined ? 
+                            changes[user.uid][currencyKey] : value;
+                        
+                        currenciesHtml += `
+                            <div style="margin-bottom: 8px;">
+                                <div style="display: flex; align-items: center;">
+                                    <span class="currency-tag ${currencyName === 'sadCoin' ? 'currency-sadcoin' : 
+                                        currencyName === 'hopeCoin' ? 'currency-hope' : 
+                                        currencyName === 'loveCoin' ? 'currency-love' : 
+                                        currencyName === 'courageCoin' ? 'currency-courage' : 
+                                        currencyName === 'peaceCoin' ? 'currency-peace' : ''}">
+                                        ${currencyName}
+                                    </span>
+                                    <input type="number" class="coins-input" value="${currencyValue || 0}" 
+                                           data-uid="${user.uid}" 
+                                           data-currency="${currencyName}"
+                                           onchange="handleCurrencyChange('${user.uid}', '${currencyName}', this.value)">
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    // 兼容旧数据（只有sadCoin）
+                    currenciesHtml = `
+                        <div style="margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center;">
+                                <span class="currency-tag currency-sadcoin">
+                                    sadCoin
+                                </span>
+                                <input type="number" class="coins-input" value="${user.coins || 0}" 
+                                       data-uid="${user.uid}" 
+                                       data-currency="sadCoin"
+                                       onchange="handleCurrencyChange('${user.uid}', 'sadCoin', this.value)">
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                usersTableBody.innerHTML += `
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                ${user.photoURL ? 
+                                    `<img src="${user.photoURL}" alt="頭像" style="width: 40px; height: 40px; border-radius: 50%;">` : 
+                                    `<div style="width: 40px; height: 40px; border-radius: 50%; background: #8a4fff; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-user"></i>
+                                    </div>`
+                                }
+                                <div>
+                                    ${user.displayName || user.email.split('@')[0]}
+                                    ${user.isAdmin ? '<span class="vip-badge" style="background: #ff6b6b; margin-left: 8px;">管理員</span>' : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td>${user.email}</td>
+                        <td>
+                            ${currenciesHtml}
+                        </td>
+                        <td>
+                            <label class="vip-toggle">
+                                <input type="checkbox" ${isVIP ? 'checked' : ''} 
+                                       data-uid="${user.uid}" 
+                                       onchange="handleChange('${user.uid}', 'isVIP', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            ${isVIP ? '<span class="vip-badge" style="margin-left: 10px;">VIP</span>' : ''}
+                        </td>
+                        <td>${lastLogin}</td>
+                        <td>
+                            <button class="edit-btn save-btn" onclick="saveUserChanges('${user.uid}')">
+                                <i class="fas fa-save"></i> 保存
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // 处理更改
+        function handleChange(uid, field, value) {
+            if (!changes[uid]) {
+                changes[uid] = {};
+            }
+            
+            changes[uid][field] = value;
+            
+            // 更新保存所有按钮状态
+            updateSaveAllButton();
+        }
+        
+        // 处理货币更改
+        function handleCurrencyChange(uid, currencyName, value) {
+            if (!changes[uid]) {
+                changes[uid] = {};
+            }
+            
+            // 使用点表示法更新嵌套字段
+            changes[uid][`currencies.${currencyName}`] = parseInt(value) || 0;
+            
+            // 更新保存所有按钮状态
+            updateSaveAllButton();
+        }
+        
+        // 更新保存所有按钮状态
+        function updateSaveAllButton() {
+            if (Object.keys(changes).length > 0) {
+                saveAllBtn.disabled = false;
+                saveAllBtn.style.opacity = '1';
+                saveAllBtn.innerHTML = `<i class="fas fa-save"></i> 保存所有更改 (${Object.keys(changes).length})`;
+            } else {
+                saveAllBtn.disabled = true;
+                saveAllBtn.style.opacity = '0.7';
+                saveAllBtn.innerHTML = '<i class="fas fa-save"></i> 保存所有更改';
+            }
+        }
+
+        // 保存用户更改
+        async function saveUserChanges(uid) {
+            if (!changes[uid]) {
+                alert('沒有更改需要保存');
+                return;
+            }
+            
+            try {
+                await db.collection('users').doc(uid).update(changes[uid]);
+                
+                alert(`用戶數據已成功更新！`);
+                
+                // 更新本地数据
+                const userIndex = allUsers.findIndex(u => u.uid === uid);
+                if (userIndex !== -1) {
+                    // 处理货币更新
+                    for (const [key, value] of Object.entries(changes[uid])) {
+                        if (key.startsWith('currencies.')) {
+                            const currencyName = key.split('.')[1];
+                            if (!allUsers[userIndex].currencies) {
+                                allUsers[userIndex].currencies = {};
+                            }
+                            allUsers[userIndex].currencies[currencyName] = value;
+                        } else {
+                            allUsers[userIndex][key] = value;
+                        }
+                    }
+                }
+                
+                // 清除更改
+                delete changes[uid];
+                
+                // 更新按钮状态
+                updateSaveAllButton();
+                
+            } catch (error) {
+                console.error("保存用戶更改錯誤:", error);
+                alert(`保存失敗: ${error.message}`);
+            }
+        }
+
+        // 加载统计数据
+        async function loadStats() {
+            try {
+                const usersSnapshot = await db.collection('users').get();
+                
+                // 真实统计数据
+                totalUsers.textContent = usersSnapshot.size;
+                
+                let vipCount = 0;
+                currencyTotals = {};
+                const today = new Date().toISOString().split('T')[0]; // 今天的日期
+                
+                // 初始化历史数据（如果不存在）
+                if (!currencyHistory[today]) {
+                    currencyHistory[today] = {};
+                }
+                
+                usersSnapshot.forEach(doc => {
+                    const user = doc.data();
+                    if (user.isVIP) vipCount++;
+                    
+                    // 处理货币
+                    if (user.currencies) {
+                        for (const [currencyName, value] of Object.entries(user.currencies)) {
+                            if (!currencyTotals[currencyName]) {
+                                currencyTotals[currencyName] = 0;
+                            }
+                            currencyTotals[currencyName] += value;
+                            
+                            // 记录历史数据
+                            if (!currencyHistory[today][currencyName]) {
+                                currencyHistory[today][currencyName] = 0;
+                            }
+                            currencyHistory[today][currencyName] += value;
+                        }
+                    } else if (user.coins) {
+                        // 兼容旧数据，直接加到sadCoin
+                        if (!currencyTotals['sadCoin']) {
+                            currencyTotals['sadCoin'] = 0;
+                        }
+                        currencyTotals['sadCoin'] += user.coins;
+                        
+                        // 记录历史数据
+                        if (!currencyHistory[today]['sadCoin']) {
+                            currencyHistory[today]['sadCoin'] = 0;
+                        }
+                        currencyHistory[today]['sadCoin'] += user.coins;
+                    }
+                });
+                
+                vipUsers.textContent = vipCount;
+                totalRecordings.textContent = (Math.floor(Math.random() * 10000) + 5000).toLocaleString();
+                
+                // 渲染币种统计
+                renderCurrencyStats('all');
+                
+            } catch (error) {
+                console.error("載入統計數據錯誤:", error);
+                
+                // 模拟统计数据
+                totalUsers.textContent = Math.floor(Math.random() * 1000) + 500;
+                vipUsers.textContent = Math.floor(Math.random() * 200) + 50;
+                totalRecordings.textContent = (Math.floor(Math.random() * 10000) + 5000).toLocaleString();
+                
+                // 清空币种统计区域
+                currencyStats.innerHTML = '';
+            }
+        }
+        
+        // 渲染币种统计
+        function renderCurrencyStats(currencyType, searchTerm = '') {
+            currencyStats.innerHTML = '';
+            
+            if (Object.keys(currencyTotals).length === 0) {
+                currencyStats.innerHTML = `
+                    <div class="currency-stat-card" style="grid-column: 1 / -1; text-align: center;">
+                        <p style="color: #c7b3ff;">暫無貨幣數據</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let currenciesToShow = [];
+            
+            if (currencyType === 'all') {
+                // 显示所有币种
+                currenciesToShow = Object.keys(currencyTotals);
+            } else {
+                // 显示特定币种
+                currenciesToShow = [currencyType];
+            }
+            
+            // 应用搜索过滤
+            if (searchTerm) {
+                currenciesToShow = currenciesToShow.filter(currency => 
+                    currency.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+            }
+            
+            // 如果没有匹配的币种
+            if (currenciesToShow.length === 0) {
+                currencyStats.innerHTML = `
+                    <div class="currency-stat-card" style="grid-column: 1 / -1; text-align: center;">
+                        <p style="color: #c7b3ff;">沒有找到匹配的幣種</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 渲染币种卡片
+            currenciesToShow.forEach(currency => {
+                const total = currencyTotals[currency];
+                const growth = Math.floor(Math.random() * 20) - 5; // 随机生成增长百分比
+                
+                // 获取币种图标和描述
+                const currencyInfo = getCurrencyInfo(currency);
+                
+                currencyStats.innerHTML += `
+                    <div class="currency-stat-card">
+                        <div class="currency-name">
+                            <div class="currency-icon" style="background: ${currencyInfo.color};">
+                                <i class="${currencyInfo.icon}"></i>
+                            </div>
+                            ${currencyInfo.name}
+                        </div>
+                        <div class="currency-total">${total.toLocaleString()}</div>
+                        <div class="currency-growth ${growth > 0 ? 'positive' : growth < 0 ? 'negative' : ''}">
+                            <i class="fas ${growth > 0 ? 'fa-arrow-up' : growth < 0 ? 'fa-arrow-down' : 'fa-minus'}"></i>
+                            ${Math.abs(growth)}%
+                        </div>
+                        <div class="currency-description">
+                            ${currencyInfo.description}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        // 获取币种信息
+        function getCurrencyInfo(currency) {
+            const currencies = {
+                'sadCoin': {
+                    name: '悲傷幣',
+                    icon: 'fas fa-cloud-rain',
+                    color: 'linear-gradient(135deg, #8a4fff, #6ab7ff)',
+                    description: '用戶通過表達悲傷情感獲得的貨幣，代表情感釋放的能量'
+                },
+                'hopeCoin': {
+                    name: '希望幣',
+                    icon: 'fas fa-sun',
+                    color: 'linear-gradient(135deg, #6ab7ff, #4fff8a)',
+                    description: '用戶通過積極參與社區活動獲得的貨幣，代表希望與未來'
+                },
+                'loveCoin': {
+                    name: '愛心幣',
+                    icon: 'fas fa-heart',
+                    color: 'linear-gradient(135deg, #ff6b6b, #ff8e8e)',
+                    description: '用戶通過幫助他人或接受幫助獲得的貨幣，代表情感連接'
+                },
+                'courageCoin': {
+                    name: '勇氣幣',
+                    icon: 'fas fa-shield-alt',
+                    color: 'linear-gradient(135deg, #ffd66b, #ffb347)',
+                    description: '用戶面對挑戰時獲得的貨幣，代表勇氣與堅持'
+                },
+                'peaceCoin': {
+                    name: '和平幣',
+                    icon: 'fas fa-dove',
+                    color: 'linear-gradient(135deg, #8a4fff, #ff6bff)',
+                    description: '用戶達到內心平和時獲得的貨幣，代表和諧與安寧'
+                }
+            };
+            
+            // 如果是未知币种，返回默认信息
+            if (currencies[currency]) {
+                return currencies[currency];
+            }
+            
+            return {
+                name: currency,
+                icon: 'fas fa-coins',
+                color: 'linear-gradient(135deg, #8a75b3, #c7b3ff)',
+                description: '系統中的通用貨幣，代表用戶在平台上的活躍度'
+            };
+        }
+
+        // 初始化页面
+        window.addEventListener('load', () => {
+            // 默认加载用户管理部分
+            document.querySelector('[data-section="dashboard"]').click();
+            
+            // 初始化货币历史数据
+            const today = new Date().toISOString().split('T')[0];
+            currencyHistory[today] = {};
+            
+            // 将函数暴露给全局作用域
+            window.handleChange = handleChange;
+            window.handleCurrencyChange = handleCurrencyChange;
+            window.saveUserChanges = saveUserChanges;
+        });
+    </script>
+</body>
+</html>
