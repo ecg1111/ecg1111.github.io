@@ -740,6 +740,9 @@
                     if(item==='FreeSpiritualSupport'||item==='免費心靈支援'){
                         need=10; itemName='免費心靈支援'; openUrl='https://www.sprc.org.tw/';
                     }
+                    if(item==='FreeSpiritualSupport'||item==='催眠治療'){
+                        need=10; itemName='催眠治療'; openUrl='https://www.instagram.com/9upzoo?igsh=MWt3eGx1aHRldjdxag==';
+                    }
                     
                     if(sadCoins<need){
                         alert('悲傷幣不足，無法兌換');
